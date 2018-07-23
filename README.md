@@ -1,9 +1,9 @@
-# U-Boot Davinci Bootcounter
+# U-Boot Davinci Bootcount Manager
 
 U-Boot implements a [boot count
 scheme](http://www.denx.de/wiki/view/DULG/UBootBootCountLimit) that can be
 used to detect multiple failed attempts to boot Linux.  On Davinci (TI AM
-33xx) the bootcount is stored in the `RTC SCRATCH2` register.  However there's
+335x) the bootcount is stored in the `RTC SCRATCH2` register.  However there's
 no way to read or write this register from userspace.  This tool provides a
 means to read and write the bootcount value.
 

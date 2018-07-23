@@ -1,4 +1,4 @@
-AM_CFLAGS               = -std=gnu99 -W -Wall -Wextra -Wno-unused-parameter
+AM_CFLAGS               = -std=c99 -pedantic -W -Wall -Wextra -Wno-unused-parameter -Wshadow
 
 sbin_PROGRAMS           = bootcount
 bootcount_SOURCES       = bootcount.c

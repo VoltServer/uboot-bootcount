@@ -14,7 +14,7 @@
  * http://git.ti.com/ti-u-boot/ti-u-boot/blobs/master/drivers/bootcount/bootcount_davinci.c
  * http://git.ti.com/ti-u-boot/ti-u-boot/blobs/master/arch/arm/include/asm/davinci_rtc.h
  * https://github.com/radii/devmem2
- * https://stackoverflow.com/questions/12040303/how-to-access-physical-addresses-from-user-space-in-linux?noredirect=1&lq=1
+ * https://stackoverflow.com/a/12041352/213983
  *
  * This file is part of the uboot-davinci-bootcount (https://github.com/VoltServer/uboot-davinci-bootcount).
  * Copyright (c) 2018 VoltServer.
@@ -44,7 +44,7 @@
 
 #define RTCSS                0x44E3E000ul
 #define SCRATCH2_REG_OFFSET  0x68ul
-#define REG_SIZE             4ul          // in bytes, registers are 32bit
+#define REG_SIZE             4ul          // registers are 4 bytes/ 32bit
 
 #define KICK0R_REG_OFFSET 0x6Cul          // see PDF section 20.3.5.23
 #define KICK1R_REG_OFFSET 0x70ul
@@ -57,35 +57,37 @@
 int main(int argc, char *argv[]) {
 
     off_t offset = RTCSS + SCRATCH2_REG_OFFSET;
-    // we can easily map SCRATCH2, KICK0R and KICK1R since they are adjacent:
+    // we can easily map SCRATCH2, KICK0R and KICK1R since they are adjacent.
+    // This is a roundabout way of saying we want SCRATCH2, KICK1R and KICK2R:
     size_t len = KICK1R_REG_OFFSET + REG_SIZE - SCRATCH2_REG_OFFSET;
 
     // Truncate offset to a multiple of the page size, or mmap will fail.
+    // see: https://stackoverflow.com/a/12041352/213983
     size_t pagesize = sysconf(_SC_PAGE_SIZE);
     off_t page_base = (offset / pagesize) * pagesize;
     off_t page_offset = offset - page_base;
 
     int fd = open("/dev/mem", O_SYNC | O_RDWR);
-    unsigned char *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
+    uint8_t *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
     if (mem == MAP_FAILED) {
-        perror("Can't map memory");
+        perror("mmap() failed");
         return -1;
     }
 
-    unsigned char *scratch2 = mem + page_offset;
-    unsigned char *kick0r = scratch2 + KICK0R_REG_OFFSET - SCRATCH2_REG_OFFSET;
-    unsigned char *kick1r = scratch2 + KICK1R_REG_OFFSET - SCRATCH2_REG_OFFSET;
+    uint32_t *scratch2 = (uint32_t *)(mem + page_offset);
+    uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
+    uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
 
     // Disable write protection, then write to SCRATCH2
     if (argc == 2 && strcmp(argv[1], "-r") == 0) {
-      *(uint32_t *)kick0r = KICK0_MAGIC;
-      *(uint32_t *)kick1r = KICK1_MAGIC;
-      *(uint32_t *)scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000);
+      *kick0r = KICK0_MAGIC;
+      *kick1r = KICK1_MAGIC;
+      *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000);
     }
 
     // Read value from SCRATCH2, verify magic number
     else if (argc == 1) {
-      uint32_t val = *(uint32_t *)scratch2;
+      uint32_t val = *scratch2;
       //printf("%08" PRIx32 "\n", val);
 
       // low two bytes are the value, high two bytes are magic

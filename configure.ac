@@ -14,6 +14,7 @@ AM_INIT_AUTOMAKE([foreign])
 AC_PROG_CC
 
 # Checks for libraries.
+#LT_INIT([disable-shared])
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h unistd.h])
@@ -21,6 +22,7 @@ AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h unistd.h])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
+AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 
