@@ -53,6 +53,15 @@
 
 #define BOOTCOUNT_MAGIC   0xB001C041ul    // from u-boot include/common.h
 
+void writeBootCount(uint32_t *scratch2, uint16_t val) {
+    uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
+    uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
+
+    // Disable write protection, then write to SCRATCH2
+    *kick0r = KICK0_MAGIC;
+    *kick1r = KICK1_MAGIC;
+    *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000) + val;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -75,17 +84,24 @@ int main(int argc, char *argv[]) {
     }
 
     uint32_t *scratch2 = (uint32_t *)(mem + page_offset);
-    uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
-    uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
 
-    // Disable write protection, then write to SCRATCH2
+    // "-r" = Reset bootcount to zero
     if (argc == 2 && strcmp(argv[1], "-r") == 0) {
-      *kick0r = KICK0_MAGIC;
-      *kick1r = KICK1_MAGIC;
-      *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000);
+      writeBootCount(scratch2, 0);
     }
 
-    // Read value from SCRATCH2, verify magic number
+    // "-f" = set bootcount to max, force 'altbootcmd' to run if bootlimit is set
+    else if (argc == 2 && strcmp(argv[1], "-f") == 0) {
+      writeBootCount(scratch2, UINT16_MAX-1);
+    }
+
+    // "-s" = set to a specific value
+    else if (argc == 3 && strcmp(argv[1], "-s") == 0) {
+      uint32_t val = strtoul(argv[2], NULL, 10);
+      writeBootCount(scratch2, val);
+    }
+
+    // no args = read value and print to stdout
     else if (argc == 1) {
       uint32_t val = *scratch2;
       //printf("%08" PRIx32 "\n", val);
@@ -98,13 +114,16 @@ int main(int argc, char *argv[]) {
 
       printf("%d\n", (uint16_t)(val & 0x0000ffff));
     }
+
     else {
-      fprintf(stderr, "Usage: %s [-r]\n\n"
-                      "Read and reset the u-boot 'bootcount' register on TI am 33xx devices.\n"
+      fprintf(stderr, "Usage: %s [-r] [-f] [-s <val>]\n\n"
+                      "Read or set the u-boot 'bootcount' register on TI am 33xx devices.\n"
                       "If invoked without any arguments, this prints the current 'bootcount'\n"
                       "value to stdout.\n\n"
                       "OPTIONS:\n\n"
-                      "\t -r\tReset the bootcount to 0\n\n"
+                      "\t-r\t\tReset the bootcount to 0.  Same as '-s 0'\n\n"
+                      "\t-s <val>\tSet the bootcount to the given value.\n\n"
+                      "\t-f\t\tForce 'altbootcmd' by setting bootcount to UINT16_MAX - 1\n\n"
                       "Package details:\t\t" PACKAGE_STRING "\n"
                       "Bug Reports:\t\t" PACKAGE_BUGREPORT "\n"
                       "Homepage:\t\t" PACKAGE_URL "\n\n", argv[0]);
