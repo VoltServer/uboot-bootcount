@@ -1,6 +1,6 @@
 *~
 *.o
-/.deps
+.deps/
 /.libs
 /m4/
 /autom4te.cache/
