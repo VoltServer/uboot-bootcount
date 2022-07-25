@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([bootcount-davinci],
-        [0.0.1],
+        [0.0.2],
         [thom.nichols@voltserver.com],
         [],
         [https://github.com/VoltServer/uboot-davinci-bootcount])
@@ -17,18 +17,20 @@ AC_PROG_CC
 #LT_INIT([disable-shared])
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h unistd.h sys/mman.h sys/stat.h sys/types.h])
+AC_CHECK_HEADER_STDBOOL
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 
 # Checks for library functions.
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([strtoul])
+AC_CHECK_FUNCS([strtoul memset])
 
 AC_CONFIG_FILES([
   Makefile

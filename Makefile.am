@@ -1,5 +1,5 @@
 SUBDIRS         = src
-doc_DATA        = README.md
+doc_DATA        = README.md COPYING
 EXTRA_DIST      = README.md
 #CLEANFILES      = README
 
