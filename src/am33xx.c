@@ -100,7 +100,7 @@ void *open_memory() {
     }
 
     uint8_t *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
-    close(fd);
+    //close(fd); // this causes the write to fail the first time, don't do it!
 
     if (mem == MAP_FAILED) {
         perror("open_memory(): mmap() failed");
