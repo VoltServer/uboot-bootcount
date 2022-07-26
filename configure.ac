@@ -3,10 +3,10 @@
 
 AC_PREREQ([2.69])
 AC_INIT([bootcount-davinci],
-        [0.0.2],
+        [2.0.0],
         [thom.nichols@voltserver.com],
         [],
-        [https://github.com/VoltServer/uboot-davinci-bootcount])
+        [https://github.com/VoltServer/uboot-bootcount])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign])
 
