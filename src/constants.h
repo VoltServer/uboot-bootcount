@@ -7,3 +7,4 @@
 #define E_BADMAGIC -1
 #define E_DEVICE -2
 #define E_PLATFORM_UNKNOWN -3
+#define E_WRITE_FAILED -4

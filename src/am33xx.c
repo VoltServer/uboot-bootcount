@@ -65,25 +65,35 @@ int am33_read_bootcount(uint16_t* val) {
 
 
 int am33_write_bootcount(uint16_t val) {
-    uint32_t *scratch2 = open_memory();
+    // NOTE: These must be volatile.
+    // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
+    volatile uint32_t *scratch2 = (volatile uint32_t *)open_memory();
     if ( scratch2 == (void *)E_DEVICE ) {
       return E_DEVICE;
     }
 
-    uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
-    uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
+    volatile uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
+    volatile uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
 
     // Disable write protection, then write to SCRATCH2
     *kick0r = KICK0_MAGIC;
     *kick1r = KICK1_MAGIC;
-    *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000) + val;
+    *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000) | (val & 0xffff);
+
+    // read back to verify:
+    uint16_t read_val = 0;
+    am33_read_bootcount(&read_val);
+    if ( read_val != val ) {
+      return E_WRITE_FAILED;
+    }
+
     return 0;
 }
 
 void *open_memory() {
     off_t offset = RTCSS + SCRATCH2_REG_OFFSET;
     // we can easily map SCRATCH2, KICK0R and KICK1R since they are adjacent.
-    // This is a roundabout way of saying we want SCRATCH2, KICK1R and KICK2R:
+    // This is a roundabout way of saying we want to map SCRATCH2, KICK1R and KICK2R:
     size_t len = KICK1R_REG_OFFSET + REG_SIZE - SCRATCH2_REG_OFFSET;
 
     // Truncate offset to a multiple of the page size, or mmap will fail.
@@ -100,14 +110,14 @@ void *open_memory() {
     }
 
     uint8_t *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
-    //close(fd); // this causes the write to fail the first time, don't do it!
+    close(fd);
 
     if (mem == MAP_FAILED) {
         perror("open_memory(): mmap() failed");
         return (void *)E_DEVICE;
     }
 
-    return (uint32_t *)(mem + page_offset);
+    return (mem + page_offset); // This is a pointer to scratch2 register
 }
 
 

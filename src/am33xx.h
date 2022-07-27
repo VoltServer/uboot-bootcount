@@ -1,5 +1,6 @@
 # pragma once
 
+// See u-boot arch/arm/include/asm/davinci_rtc.h:
 #define RTCSS                0x44E3E000ul
 #define SCRATCH2_REG_OFFSET  0x68ul
 #define REG_SIZE             4ul          // registers are 4 bytes/ 32bit
