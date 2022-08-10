@@ -171,7 +171,8 @@ int main(int argc, char *argv[]) {
 
     // if we fall through, print help and exit
     fprintf(stderr, "Usage: %s [-r] [-f] [-s <val>]\n\n"
-                    "Read or set the u-boot 'bootcount' register on TI am 33xx devices.\n"
+                    "Read or set the u-boot 'bootcount'.  Presently supports the RTC SCRATCH2\n"
+                    "register on TI AM33xx devices, and generic DM I2C EEPROM via /sys/bus/i2c/devices/\n"
                     "If invoked without any arguments, this prints the current 'bootcount'\n"
                     "value to stdout.\n\n"
                     "OPTIONS:\n\n"

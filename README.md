@@ -1,6 +1,6 @@
-# U-Boot Bootcount Manager
+# U-Boot Bootcount userspace program
 
-U-Boot implements a [boot count
+U-Boot supports a [boot count
 scheme](http://www.denx.de/wiki/view/DULG/UBootBootCountLimit) that can be
 used to detect multiple failed attempts to boot Linux.  On Davinci (TI AM
 335x) the bootcount is stored in the `RTC SCRATCH2` register.  However there's
@@ -52,6 +52,29 @@ make install DESTDIR=$LOCATION_OF_CHROOT
 ```
 
 During development, periodically run `autoscan` to detect if changes should be made to `configure.ac`.
+
+## Relevant U-Boot KConfig settings:
+For AM335x:
+```
+
+```
+
+For I2C EEPROM:
+```
+CONFIG_BOOTCOUNT_LIMIT=y
+CONFIG_DM_BOOTCOUNT=y
+CONFIG_DM_BOOTCOUNT_I2C_EEPROM=y
+CONFIG_SYS_I2C_MVTWSI=y
+CONFIG_MISC=y
+CONFIG_I2C_EEPROM=y
+CONFIG_I2C_SET_DEFAULT_BUS_NUM=y
+CONFIG_I2C_DEFAULT_BUS_NUMBER=0x02
+CONFIG_SYS_I2C_EEPROM_ADDR=0x50
+CONFIG_SPL_I2C=y
+CONFIG_CMD_EEPROM=y
+CONFIG_SYS_I2C_EEPROM_BUS=2
+CONFIG_SYS_EEPROM_SIZE=1024
+```
 
 # Further Reading
 

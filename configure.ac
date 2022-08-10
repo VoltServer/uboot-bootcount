@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([bootcount-davinci],
+AC_INIT([uboot-bootcount],
         [2.0.0],
         [thom.nichols@voltserver.com],
         [],
