@@ -1,8 +1,9 @@
 
 /**
- * i2c-EEPROM boot counter
+ * i2c-EEPROM boot counter.
+ * Ref: https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/i2c-eeprom.c
  *
- * This file is part of the uboot-davinci-bootcount (https://github.com/VoltServer/uboot-davinci-bootcount).
+ * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  * Copyright (c) 2018 VoltServer.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -46,29 +47,28 @@ int eeprom_write_bootcount(uint16_t val) {
     return eeprom_write_bootcount2(val, DEFAULT_I2C_BUS, DEFFAULT_I2C_ADDR, DEFAULT_OFFSET);
 }
 
+// https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/i2c-eeprom.c#L34
 int eeprom_read_bootcount2(uint16_t *val, uint8_t bus, uint8_t addr, off_t offset) {
 
-    char data[4];
+    uint16_t data;
     int fd = open_eeprom(bus, addr, offset);
     if ( fd == E_DEVICE ) {
         return E_DEVICE;
     }
-    if ( read(fd, data, sizeof(data)) == -1 ) {
+    if ( read(fd, &data, sizeof(data)) == -1 ) {
         perror("Read error");
         return E_DEVICE;
     }
 
-    uint32_t read_magic = (data[0] << 24) + (data[1] << 16);
-    // low two bytes are the value, high two bytes are magic
-    if (read_magic != (BOOTCOUNT_MAGIC & 0xffff0000)) {
+    if (data >> 8 != EEPROM_MAGIC) {
         return E_BADMAGIC;
     }
 
-    *val = ((uint16_t)data[2] << 8) + data[3];
+    *val = data & 0xff;
     return 0;
 }
 
-
+// https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/i2c-eeprom.c#L20
 int eeprom_write_bootcount2(uint16_t val, uint8_t bus, uint8_t addr, off_t offset) {
 
     int fd = open_eeprom(bus, addr, offset);
@@ -76,23 +76,16 @@ int eeprom_write_bootcount2(uint16_t val, uint8_t bus, uint8_t addr, off_t offse
         return E_DEVICE;
     }
 
-    char data[4];
-    memset(&data, 0, sizeof(data));
-    data[0] = ((BOOTCOUNT_MAGIC & 0xff000000) >> 24);
-    data[1] = ((BOOTCOUNT_MAGIC & 0x00ff0000) >> 16);
-    data[2] = ((val & 0xff00) >> 8);
-    data[3] =  (val & 0x00ff);
-    //(uint32_t *) *data = (BOOTCOUNT_MAGIC & 0xffff0000) + val;
-    //printf("%a\n", (BOOTCOUNT_MAGIC & 0xffff0000) + val);
-    //printf("%02x %02x %02x %02x\n", data[0], data[1], data[2], data[3]);
+    uint16_t data = 0;
+    data = EEPROM_MAGIC << 8 | (val & 0xff);
 
-    ssize_t written = write(fd, data, sizeof(data));
+    ssize_t written = write(fd, &data, sizeof(data));
     if ( written == -1 ) {
       perror("Write error");
       return E_DEVICE;
     }
     if ( (size_t)written < sizeof(data) ) {
-      fprintf(stderr, "Only wrote %d bytes!\n", written);
+      fprintf(stderr, "Incomplete write: %d bytes!\n", written);
     }
     close(fd);
 
