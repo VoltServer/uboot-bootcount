@@ -49,14 +49,14 @@ int am33_read_bootcount(uint16_t* val) {
 
     uint32_t *scratch2 = open_memory();
     if ( scratch2 == (void *)E_DEVICE ) {
-      return E_DEVICE;
+        return E_DEVICE;
     }
 
     //printf("%08" PRIx32 "\n", *scratch2);
 
     // low two bytes are the value, high two bytes are magic
     if ((*scratch2 & 0xffff0000) != (BOOTCOUNT_MAGIC & 0xffff0000)) {
-      return E_BADMAGIC;
+        return E_BADMAGIC;
     }
 
     *val = (uint16_t)(*scratch2 & 0x0000ffff);
@@ -69,7 +69,7 @@ int am33_write_bootcount(uint16_t val) {
     // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
     volatile uint32_t *scratch2 = (volatile uint32_t *)open_memory();
     if ( scratch2 == (void *)E_DEVICE ) {
-      return E_DEVICE;
+        return E_DEVICE;
     }
 
     volatile uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
@@ -84,7 +84,7 @@ int am33_write_bootcount(uint16_t val) {
     uint16_t read_val = 0;
     am33_read_bootcount(&read_val);
     if ( read_val != val ) {
-      return E_WRITE_FAILED;
+        return E_WRITE_FAILED;
     }
 
     return 0;

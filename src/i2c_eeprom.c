@@ -81,11 +81,11 @@ int eeprom_write_bootcount2(uint16_t val, uint8_t bus, uint8_t addr, off_t offse
 
     ssize_t written = write(fd, &data, sizeof(data));
     if ( written == -1 ) {
-      perror("Write error");
-      return E_DEVICE;
+        perror("Write error");
+        return E_DEVICE;
     }
     if ( (size_t)written < sizeof(data) ) {
-      fprintf(stderr, "Incomplete write: %d bytes!\n", written);
+        fprintf(stderr, "Incomplete write: %d bytes!\n", written);
     }
     close(fd);
 
