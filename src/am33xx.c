@@ -43,11 +43,11 @@
 #include "./constants.h"
 #include "./am33xx.h"
 
-void *open_memory();
+void *_am33_open_memory();
 
 int am33_read_bootcount(uint16_t* val) {
 
-    uint32_t *scratch2 = open_memory();
+    uint32_t *scratch2 = _am33_open_memory();
     if ( scratch2 == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -67,7 +67,7 @@ int am33_read_bootcount(uint16_t* val) {
 int am33_write_bootcount(uint16_t val) {
     // NOTE: These must be volatile.
     // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
-    volatile uint32_t *scratch2 = (volatile uint32_t *)open_memory();
+    volatile uint32_t *scratch2 = (volatile uint32_t *)_am33_open_memory();
     if ( scratch2 == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -90,7 +90,7 @@ int am33_write_bootcount(uint16_t val) {
     return 0;
 }
 
-void *open_memory() {
+void *_am33_open_memory() {
     off_t offset = RTCSS + SCRATCH2_REG_OFFSET;
     // we can easily map SCRATCH2, KICK0R and KICK1R since they are adjacent.
     // This is a roundabout way of saying we want to map SCRATCH2, KICK1R and KICK2R:
