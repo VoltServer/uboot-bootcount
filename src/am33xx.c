@@ -36,18 +36,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #include "./constants.h"
+#include "./memory.h"
 #include "./am33xx.h"
 
-void *_am33_open_memory();
+#define AM33XX_MEM_OFFSET (RTCSS + SCRATCH2_REG_OFFSET)
+#define AM33XX_MEM_LEN    (KICK1R_REG_OFFSET + REG_SIZE - SCRATCH2_REG_OFFSET)
 
 int am33_read_bootcount(uint16_t* val) {
 
-    uint32_t *scratch2 = _am33_open_memory();
+    uint32_t *scratch2 = memory_open(AM33XX_MEM_OFFSET, AM33XX_MEM_LEN);
     if ( scratch2 == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -67,7 +66,8 @@ int am33_read_bootcount(uint16_t* val) {
 int am33_write_bootcount(uint16_t val) {
     // NOTE: These must be volatile.
     // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
-    volatile uint32_t *scratch2 = (volatile uint32_t *)_am33_open_memory();
+    volatile uint32_t *scratch2 =
+        (volatile uint32_t *)memory_open(AM33XX_MEM_OFFSET, AM33XX_MEM_LEN);
     if ( scratch2 == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -89,35 +89,3 @@ int am33_write_bootcount(uint16_t val) {
 
     return 0;
 }
-
-void *_am33_open_memory() {
-    off_t offset = RTCSS + SCRATCH2_REG_OFFSET;
-    // we can easily map SCRATCH2, KICK0R and KICK1R since they are adjacent.
-    // This is a roundabout way of saying we want to map SCRATCH2, KICK1R and KICK2R:
-    size_t len = KICK1R_REG_OFFSET + REG_SIZE - SCRATCH2_REG_OFFSET;
-
-    // Truncate offset to a multiple of the page size, or mmap will fail.
-    // see: https://stackoverflow.com/a/12041352/213983
-    size_t pagesize = sysconf(_SC_PAGE_SIZE);
-    off_t page_base = (offset / pagesize) * pagesize;
-    off_t page_offset = offset - page_base;
-
-    int fd = open("/dev/mem", O_SYNC | O_RDWR);
-
-    if ( fd < 0 ) {
-        perror("open_memory(): open(\"/dev/mem\") failed");
-        return (void *)E_DEVICE;
-    }
-
-    uint8_t *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
-    close(fd);
-
-    if (mem == MAP_FAILED) {
-        perror("open_memory(): mmap() failed");
-        return (void *)E_DEVICE;
-    }
-
-    return (mem + page_offset); // This is a pointer to scratch2 register
-}
-
-

@@ -22,18 +22,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #include "./constants.h"
+#include "./memory.h"
 #include "./stm32mp1.h"
 
-void *_stm32_open_memory();
+#define STM32MP1_MEM_OFFSET (TAMP_BKP0R + TAMP_BKP21R_OFFSET)
+#define STM32MP1_MEM_LEN (REG_SIZE)
 
 int stm32mp1_read_bootcount(uint16_t* val) {
 
-    uint32_t *bkp21r = _stm32_open_memory();
+    uint32_t *bkp21r = memory_open(STM32MP1_MEM_OFFSET, STM32MP1_MEM_LEN);
     if ( bkp21r == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -53,7 +52,8 @@ int stm32mp1_read_bootcount(uint16_t* val) {
 int stm32mp1_write_bootcount(uint16_t val) {
     // NOTE: These must be volatile.
     // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
-    volatile uint32_t *bkp21r = (volatile uint32_t *)_stm32_open_memory();
+    volatile uint32_t *bkp21r =
+        (volatile uint32_t *)memory_open(STM32MP1_MEM_OFFSET, STM32MP1_MEM_LEN);
     if ( bkp21r == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
@@ -69,34 +69,3 @@ int stm32mp1_write_bootcount(uint16_t val) {
 
     return 0;
 }
-
-void *_stm32_open_memory() {
-    off_t offset = TAMP_BKP0R + TAMP_BKP21R_OFFSET;
-    // Only need to map a single register:
-    size_t len = REG_SIZE;
-
-    // Truncate offset to a multiple of the page size, or mmap will fail.
-    // see: https://stackoverflow.com/a/12041352/213983
-    size_t pagesize = sysconf(_SC_PAGE_SIZE);
-    off_t page_base = (offset / pagesize) * pagesize;
-    off_t page_offset = offset - page_base;
-
-    int fd = open("/dev/mem", O_SYNC | O_RDWR);
-
-    if ( fd < 0 ) {
-        perror("open_memory(): open(\"/dev/mem\") failed");
-        return (void *)E_DEVICE;
-    }
-
-    uint8_t *mem = mmap(NULL, page_offset + len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, page_base);
-    close(fd);
-
-    if (mem == MAP_FAILED) {
-        perror("open_memory(): mmap() failed");
-        return (void *)E_DEVICE;
-    }
-
-    return (mem + page_offset); // This is a pointer to TAMP_BKP21R register
-}
-
-
