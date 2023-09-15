@@ -16,7 +16,7 @@
  * https://github.com/radii/devmem2
  * https://stackoverflow.com/a/12041352/213983
  *
- * This file is part of the uboot-davinci-bootcount (https://github.com/VoltServer/uboot-davinci-bootcount).
+ * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  * Copyright (c) 2018 VoltServer.
  *
  * This program is free software: you can redistribute it and/or modify

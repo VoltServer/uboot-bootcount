@@ -2,7 +2,7 @@
  * Access and reset u-boot's "bootcount" counter for the STM32MP1 platform
  * which is stored in the TAMP_BKP21R.
  *
- * This file is part of the uboot-davinci-bootcount (https://github.com/VoltServer/uboot-davinci-bootcount).
+ * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  * Copyright (c) 2018 VoltServer.
  *
  * This program is free software: you can redistribute it and/or modify
