@@ -1,5 +1,7 @@
 # pragma once
 
+#define AM33_PLAT_NAME "TI AM335x"
+
 // See u-boot arch/arm/include/asm/davinci_rtc.h:
 #define RTCSS                0x44E3E000ul
 #define SCRATCH2_REG_OFFSET  0x68ul
