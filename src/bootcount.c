@@ -37,6 +37,13 @@
 
 #define DT_COMPATIBLE_NODE "/proc/device-tree/compatible"
 
+struct platform {
+    const char *name;
+    bool (*detect)();
+    int (*read_bootcount)(uint16_t *val);
+    int (*write_bootcount)(uint16_t val);
+};
+
 bool debug = DEBUG;
 
 /**
@@ -89,29 +96,61 @@ bool is_stm32mp1() {
     return is_compatible_soc("st,stm32mp153") || is_compatible_soc("st,stm32mp157");
 }
 
-int platform_detect() {
-    if ( is_ti_am33() ) {
-        printf("Detected TI AM335x\n");
-        return 0;
+static const struct platform platforms[] = {
+    {.name = AM33_PLAT_NAME,
+     .detect = is_ti_am33,
+     .read_bootcount = am33_read_bootcount,
+     .write_bootcount = am33_write_bootcount
+    },
+    {.name = STM32MP1_PLAT_NAME,
+     .detect = is_stm32mp1,
+     .read_bootcount = stm32mp1_read_bootcount,
+     .write_bootcount = stm32mp1_write_bootcount
+    },
+    {.name = EEPROM_NAME,
+     .detect = eeprom_exists,
+     .read_bootcount = eeprom_read_bootcount,
+     .write_bootcount = eeprom_write_bootcount
+    },
+    {.name = NULL} /* sentinel */
+};
+
+static int platform_detect(const struct platform **platform, bool verbose) {
+    const struct platform *plat;
+    int i;
+
+    for (i = 0; platforms[i].name; i++) {
+        plat = &platforms[i];
+        if (plat->detect()) {
+            if (platform)
+                *platform = plat;
+
+            if (verbose)
+                printf("Detected %s\n", plat->name);
+
+            return 0;
+        }
     }
 
-    if ( is_stm32mp1() ) {
-        printf("Detected STM32MP1\n");
-        return 0;
+    fprintf(stderr, "Warning: unknown platform\n");
+    fprintf(stderr, "Current support is for:\n");
+    for (i = 0; platforms[i].name; i++) {
+        plat = &platforms[i];
+        fprintf(stderr, " * %s", plat->name);
+        if (!strcmp(plat->name, EEPROM_NAME))
+            fprintf(stderr, " at " EEPROM_PATH,
+                    DEFAULT_I2C_BUS, DEFFAULT_I2C_ADDR);
+
+        fprintf(stderr, "\n");
     }
 
-    if ( eeprom_exists() ) {
-        printf("Detected I2C EEPROM\n");
-        return 0;
-    }
-
-    printf("Warning: unknown platform: Not TI AM335x and no I2C EEPROM at ");
-    printf(EEPROM_PATH "\n", DEFAULT_I2C_BUS, DEFFAULT_I2C_ADDR);
     return E_PLATFORM_UNKNOWN;
 }
 
 int main(int argc, char *argv[]) {
     int err;
+    bool detect_only;
+    const struct platform *plat;
 
     char *debug_env = getenv("DEBUG");
 
@@ -123,20 +162,17 @@ int main(int argc, char *argv[]) {
     }
     DEBUG_PRINTF("DEBUG=%s\n", debug_env);
 
+    detect_only = argc == 2 && strcmp(argv[1], "-d") == 0;
+    err = platform_detect(&plat, detect_only);
+
     // "-d" print platform detection to stdout and exit
-    if (argc == 2 && strcmp(argv[1], "-d") == 0) {
+    if (detect_only) {
         DEBUG_PRINTF("Action=detect\n");
-        return platform_detect();
+        return err;
     }
 
-    bool use_ti = is_ti_am33();
-    bool use_stm = ! use_ti && is_stm32mp1();
-
-    if ( ! use_ti && ! use_stm && ! eeprom_exists() ) {
-        fprintf(stderr, "Not TI AM335x or STM32MP1 and no I2C EEPROM at ");
-        fprintf(stderr, EEPROM_PATH "\n", DEFAULT_I2C_BUS, DEFFAULT_I2C_ADDR);
-        return E_PLATFORM_UNKNOWN;
-    }
+    if (err)
+        return err;
 
     // no args: read value and print to stdout
     if (argc == 1) {
@@ -144,16 +180,7 @@ int main(int argc, char *argv[]) {
 
         uint16_t val = 0;
 
-        if ( use_ti ) {
-            err = am33_read_bootcount(&val);
-        }
-        else if ( use_stm ) {
-            err = stm32mp1_read_bootcount(&val);
-        }
-        else {
-            err = eeprom_read_bootcount(&val);
-        }
-
+        err = plat->read_bootcount(&val);
         if (err != 0) {
             printf("Error %d\n", err);
             return err;
@@ -190,15 +217,8 @@ int main(int argc, char *argv[]) {
 
         if ( write_valid ) {
             DEBUG_PRINTF("Write %d\n", val_arg);
-            if ( use_ti ) {
-                err = am33_write_bootcount(val_arg);
-            }
-            else if ( use_stm ) {
-                err = stm32mp1_write_bootcount(val_arg);
-            }
-            else {
-                err = eeprom_write_bootcount(val_arg);
-            }
+
+            err = plat->write_bootcount(val_arg);
             if (err != 0) {
                 printf("Error %d\n", err);
                 return err;
