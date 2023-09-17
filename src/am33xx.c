@@ -55,7 +55,7 @@
 #define AM33XX_MEM_OFFSET (RTCSS + SCRATCH2_REG_OFFSET)
 #define AM33XX_MEM_LEN    (KICK1R_REG_OFFSET + REG_SIZE - SCRATCH2_REG_OFFSET)
 
-bool is_ti_am33() {
+bool is_am33() {
     return is_compatible_soc("ti,am33xx");
 }
 
