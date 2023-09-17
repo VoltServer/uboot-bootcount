@@ -1,5 +1,7 @@
 # pragma once
 
+#include <stdbool.h>
+
 #define AM33_PLAT_NAME "TI AM335x"
 
 // See u-boot arch/arm/include/asm/davinci_rtc.h:
@@ -12,6 +14,7 @@
 #define KICK0_MAGIC       0x83E70B13ul
 #define KICK1_MAGIC       0x95A4F1E0ul
 
+bool is_ti_am33();
 int am33_read_bootcount(uint16_t* val);
 
 int am33_write_bootcount(uint16_t val);
