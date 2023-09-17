@@ -33,6 +33,12 @@
 #include "constants.h"
 #include "i2c_eeprom.h"
 
+#define DEFAULT_OFFSET 0x100
+
+// EEPROM does not use the same bootcount magic:
+// https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/i2c-eeprom.c#L13
+#define EEPROM_MAGIC 0xbc
+
 int open_eeprom(uint8_t bus, uint8_t addr, off_t offset);
 
 int eeprom_read_bootcount2(uint16_t *val, uint8_t bus, uint8_t addr, off_t offset);
