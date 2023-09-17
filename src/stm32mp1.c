@@ -28,6 +28,11 @@
 #include "./dt.h"
 #include "./stm32mp1.h"
 
+// See https://wiki.st.com/stm32mpu/wiki/STM32MP15_backup_registers#BOOT_COUNTER
+#define TAMP_BKP0R 0x5C00A100ul
+#define TAMP_BKP21R_OFFSET 0x54ul
+#define REG_SIZE             4ul          // registers are 4 bytes/ 32bit
+
 #define STM32MP1_MEM_OFFSET (TAMP_BKP0R + TAMP_BKP21R_OFFSET)
 #define STM32MP1_MEM_LEN (REG_SIZE)
 
