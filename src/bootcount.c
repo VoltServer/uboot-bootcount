@@ -22,20 +22,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 //#include <inttypes.h> // used for PRIx32 macro
 #include <config.h>
 
 #include "constants.h"
+#include "dt.h"
 #include "am33xx.h"
 #include "stm32mp1.h"
 #include "i2c_eeprom.h"
-
-#define DEBUG_PRINTF(...) if (debug) { fprintf( stderr, "DEBUG: " __VA_ARGS__ ); }
-
-#define DT_COMPATIBLE_NODE "/proc/device-tree/compatible"
 
 struct platform {
     const char *name;
@@ -46,48 +42,6 @@ struct platform {
 
 bool debug = DEBUG;
 
-/**
- * Read /proc/device-tree/compatible to detect hardware platform, which
- * can be used to determine which bootcount strategy to use
- */
-bool is_compatible_soc(const char* compat_str) {
-    FILE *fd = fopen(DT_COMPATIBLE_NODE, "r");
-
-    if (fd == NULL) {
-        fprintf(stderr, "No DT node " DT_COMPATIBLE_NODE
-                " while searching for \"%s\"\n", compat_str);
-        return false;
-    }
-
-    char compatible[100];
-    bool is_match = false;
-    int bytes_read = 0;
-
-    while (feof(fd) == 0 && ferror(fd) == 0 && ! is_match) {
-        // Note: if the 'compatible' node specifies multiple strings, they will be
-        // null-delineated. Therefore fread() can be used to read the whole file however
-        // string functions like like strstr() will only consider data up to the first null byte.
-        // We need to continue comparing strings up to bytes_read
-
-        if ( (bytes_read = fread(compatible, 1, sizeof(compatible)-1, fd)) > 0 ) {
-            compatible[bytes_read] = 0; // null-terminate the full string
-            char *ptr = compatible;
-            while( ptr < compatible+bytes_read ) {
-                DEBUG_PRINTF("Read from " DT_COMPATIBLE_NODE ": %s\n", ptr);
-                if(strstr(ptr, compat_str) != NULL) {
-                    DEBUG_PRINTF("   Found! %s\n", compat_str);
-                    is_match = true;
-                    break;
-                }
-                ptr += strlen(ptr) + 1;
-            }
-        }
-    }
-
-    fclose(fd);
-    return is_match;
-}
-
 bool is_ti_am33() {
     return is_compatible_soc("ti,am33xx");
 }
@@ -95,7 +49,6 @@ bool is_ti_am33() {
 bool is_stm32mp1() {
     return is_compatible_soc("st,stm32mp153") || is_compatible_soc("st,stm32mp157");
 }
-
 static const struct platform platforms[] = {
     {.name = AM33_PLAT_NAME,
      .detect = is_ti_am33,
