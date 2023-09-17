@@ -30,6 +30,7 @@
 #include "constants.h"
 #include "dt.h"
 #include "am33xx.h"
+#include "imx8m.h"
 #include "stm32mp1.h"
 #include "i2c_eeprom.h"
 
@@ -47,6 +48,11 @@ static const struct platform platforms[] = {
      .detect = is_am33,
      .read_bootcount = am33_read_bootcount,
      .write_bootcount = am33_write_bootcount
+    },
+    {.name = IMX8M_PLAT_NAME,
+     .detect = is_imx8m,
+     .read_bootcount = imx8m_read_bootcount,
+     .write_bootcount = imx8m_write_bootcount
     },
     {.name = STM32MP1_PLAT_NAME,
      .detect = is_stm32mp1,
