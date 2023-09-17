@@ -44,7 +44,7 @@ bool debug = DEBUG;
 
 static const struct platform platforms[] = {
     {.name = AM33_PLAT_NAME,
-     .detect = is_ti_am33,
+     .detect = is_am33,
      .read_bootcount = am33_read_bootcount,
      .write_bootcount = am33_write_bootcount
     },
