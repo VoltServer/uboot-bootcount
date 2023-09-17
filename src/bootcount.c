@@ -42,13 +42,6 @@ struct platform {
 
 bool debug = DEBUG;
 
-bool is_ti_am33() {
-    return is_compatible_soc("ti,am33xx");
-}
-
-bool is_stm32mp1() {
-    return is_compatible_soc("st,stm32mp153") || is_compatible_soc("st,stm32mp157");
-}
 static const struct platform platforms[] = {
     {.name = AM33_PLAT_NAME,
      .detect = is_ti_am33,

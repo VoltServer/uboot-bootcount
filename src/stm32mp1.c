@@ -25,10 +25,15 @@
 
 #include "./constants.h"
 #include "./memory.h"
+#include "./dt.h"
 #include "./stm32mp1.h"
 
 #define STM32MP1_MEM_OFFSET (TAMP_BKP0R + TAMP_BKP21R_OFFSET)
 #define STM32MP1_MEM_LEN (REG_SIZE)
+
+bool is_stm32mp1() {
+    return is_compatible_soc("st,stm32mp153") || is_compatible_soc("st,stm32mp157");
+}
 
 int stm32mp1_read_bootcount(uint16_t* val) {
 
