@@ -47,7 +47,8 @@ bool is_compatible_soc(const char* compat_str) {
     FILE *fd = fopen(DT_COMPATIBLE_NODE, "r");
 
     if (fd == NULL) {
-        fprintf(stderr, "No DT node " DT_COMPATIBLE_NODE "\n");
+        fprintf(stderr, "No DT node " DT_COMPATIBLE_NODE
+                " while searching for \"%s\"\n", compat_str);
         return false;
     }
 
