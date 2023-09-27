@@ -61,19 +61,18 @@ bool is_am33() {
 
 int am33_read_bootcount(uint16_t* val) {
 
-    uint32_t *scratch2 = memory_open(AM33XX_MEM_OFFSET, AM33XX_MEM_LEN);
-    if ( scratch2 == (void *)E_DEVICE ) {
+    uint32_t *scratch2_addr = memory_open(AM33XX_MEM_OFFSET, AM33XX_MEM_LEN);
+    if ( scratch2_addr == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
 
-    //printf("%08" PRIx32 "\n", *scratch2);
-
+    uint32_t scratch2_val = memory_read(scratch2_addr);
     // low two bytes are the value, high two bytes are magic
-    if ((*scratch2 & 0xffff0000) != (BOOTCOUNT_MAGIC & 0xffff0000)) {
+    if ((scratch2_val & 0xffff0000) != (BOOTCOUNT_MAGIC & 0xffff0000)) {
         return E_BADMAGIC;
     }
 
-    *val = (uint16_t)(*scratch2 & 0x0000ffff);
+    *val = (uint16_t)(scratch2_val & 0x0000ffff);
     return 0;
 }
 
@@ -81,19 +80,20 @@ int am33_read_bootcount(uint16_t* val) {
 int am33_write_bootcount(uint16_t val) {
     // NOTE: These must be volatile.
     // See https://github.com/brgl/busybox/blob/master/miscutils/devmem.c
-    volatile uint32_t *scratch2 =
+    volatile uint32_t *scratch2_addr =
         (volatile uint32_t *)memory_open(AM33XX_MEM_OFFSET, AM33XX_MEM_LEN);
-    if ( scratch2 == (void *)E_DEVICE ) {
+    if ( scratch2_addr == (void *)E_DEVICE ) {
         return E_DEVICE;
     }
 
-    volatile uint32_t *kick0r = scratch2 + 1;    // next 32-bit register after SCRATCH2
+    volatile uint32_t *kick0r = scratch2_addr + 1;    // next 32-bit register after SCRATCH2
     volatile uint32_t *kick1r = kick0r + 1;      // next 32-bit register after KICK0R
 
     // Disable write protection, then write to SCRATCH2
     *kick0r = KICK0_MAGIC;
     *kick1r = KICK1_MAGIC;
-    *scratch2 = (BOOTCOUNT_MAGIC & 0xffff0000) | (val & 0xffff);
+    uint32_t scratch2_val = (BOOTCOUNT_MAGIC & 0xffff0000) | (val & 0xffff);
+    memory_write(scratch2_addr, scratch2_val);
 
     // read back to verify:
     uint16_t read_val = 0;
