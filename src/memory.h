@@ -23,3 +23,5 @@
 #include <sys/types.h>
 
 void *memory_open(off_t offset, size_t len);
+uint32_t memory_read(volatile uint32_t *addr);
+void memory_write(volatile uint32_t *addr, uint32_t data);

@@ -27,6 +27,12 @@
 #include "constants.h"
 #include "memory.h"
 
+#define uswap_32(x) \
+	((((x) & 0xff000000) >> 24) | \
+	 (((x) & 0x00ff0000) >>  8) | \
+	 (((x) & 0x0000ff00) <<  8) | \
+	 (((x) & 0x000000ff) << 24))
+
 void *memory_open(off_t offset, size_t len) {
     size_t pagesize;
     off_t page_base, page_offset;
@@ -58,3 +64,29 @@ void *memory_open(off_t offset, size_t len) {
 
     return (mem + page_offset);
 }
+
+#ifdef BIG_ENDIAN
+uint32_t memory_read(volatile uint32_t *addr)
+{
+	volatile uint32_t val = *addr;
+
+	return uswap_32(val);
+}
+
+void memory_write(volatile uint32_t *addr, uint32_t data)
+{
+	*addr = uswap_32(data);
+}
+#else
+uint32_t memory_read(volatile uint32_t *addr)
+{
+	volatile uint32_t val = *addr;
+
+	return val;
+}
+
+void memory_write(volatile uint32_t *addr, uint32_t data)
+{
+	*addr = data;
+}
+#endif
