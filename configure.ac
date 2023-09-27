@@ -32,6 +32,21 @@ AC_TYPE_UINT32_T
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([strtoul memset])
 
+# endianness setting
+AC_ARG_WITH(endianness,
+		AS_HELP_STRING(
+			[--with-endianness={big|little}],
+			[define bootcount value endianness]),
+		[endianness=${withval}],
+		[endianness=little]
+	   )
+
+AC_MSG_CHECKING([endianness])
+if test "${endianness}" = "big"; then
+	AC_DEFINE([BIG_ENDIAN], 1, [Define to 1 for big endian])
+fi
+AC_MSG_RESULT([${endianness}])
+
 AC_CONFIG_FILES([
   Makefile
   src/Makefile
