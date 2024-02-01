@@ -2,13 +2,14 @@
 
 U-Boot supports a [boot count
 scheme](http://www.denx.de/wiki/view/DULG/UBootBootCountLimit) that can be
-used to detect multiple failed attempts to boot Linux.  On Davinci (TI AM
-335x) the bootcount is stored in the `RTC SCRATCH2` register.  However there's
-no way to read or write this register from userspace.  This tool provides a
-means to read and write the bootcount value.
+used to detect multiple failed attempts to boot Linux.  
 
-On non TI AM33xx platforms, this will look for a Device-Tree EEPROM.  The I2C bus, 
-address and EEPROM offset are defined at build-time in stc/i2c_eeprom.h.
+Some platforms have persistent registers that survive soft-resets. This tool 
+provides a means to read and write the bootcount value to the register on several 
+supported platforms (see below).
+
+On platforms without register support, this will look for a Device-Tree EEPROM.  
+The I2C bus, address and EEPROM offset are defined at build-time in src/i2c_eeprom.h.
 
 Platform detection is perfomed by looking at the value of `/proc/device-tree/soc/compatible`.
 
@@ -27,7 +28,8 @@ to `stdout`.  When passing the `-r` flag, it will reset the bootcount value
 ~ # bootcount -f     # sets bootcount to UINT16_MAX - 1
 ~ # bootcount
 65534
-
+~ # bootcount -d     # platform & method detection
+Detected TI AM335x
 ```
 Set the `DEBUG` environment variable to get debugging data on stdout.  Example:
 ```
@@ -37,7 +39,6 @@ DEBUG: Read from /proc/device-tree/soc/compatible: ti,omap-infra
 DEBUG: Using EEPROM? 0
 DEBUG: Action=force
 DEBUG: Write value 65534
-
 ```
 
 
@@ -53,13 +54,44 @@ make install DESTDIR=$LOCATION_OF_CHROOT
 
 During development, periodically run `autoscan` to detect if changes should be made to `configure.ac`.
 
-## Relevant U-Boot KConfig settings:
-For AM335x:
-```
 
-```
+# Supported Platforms
 
-For I2C EEPROM:
+For all supported chipsets below, the required u-boot config settings are set 
+by default when choosing the respective build target.  For I2C EEPROM, config 
+settings are listed below.
+
+### TI AM335x
+
+On TI AM335x, the [RTC_SCRATCH2_REG](https://www.ti.com/lit/ug/spruh73p/spruh73p.pdf) 
+register is used.
+
+Compatible platforms:
+ * `ti,am33xx`
+
+### STM32 MP15x
+
+STM32 chipsets in the MP15x series use the [TAMP_BKP21R register](https://wiki.st.com/stm32mpu/wiki/STM32MP15_backup_registers#Boot_counter_feature).
+
+Compatible platforms:
+ * `st,stm32mp153`
+ * `st,stm32mp157`
+
+### NXP iMX8
+
+NXP iMX8 uses the `SNVS_LP GPR0` register.
+
+Compatible platforms:
+ * `fsl,imx8mm`
+ * `fsl,imx8mn`
+ * `fsl,imx8mp`
+ * `fsl,imx8mq`
+
+### I2C EEPROM
+
+Chipsets without a dedicated register can use I2C EEPROM.
+
+For I2C EEPROM, use the following u-boot config settings:
 ```
 CONFIG_BOOTCOUNT_LIMIT=y
 CONFIG_DM_BOOTCOUNT=y
@@ -75,6 +107,10 @@ CONFIG_CMD_EEPROM=y
 CONFIG_SYS_I2C_EEPROM_BUS=2
 CONFIG_SYS_EEPROM_SIZE=1024
 ```
+This bootcount program will look for i2c EEPROM at 
+`/sys/bus/i2c/devices/2-0050/eeprom`, if none of the above platforms are 
+detected.  Bus and address are defined in `i2c_eeprom.h`.
+
 
 # Further Reading
 

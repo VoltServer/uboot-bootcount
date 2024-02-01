@@ -13,8 +13,6 @@
  * http://www.denx.de/wiki/view/DULG/UBootBootCountLimit
  * http://git.ti.com/ti-u-boot/ti-u-boot/blobs/master/drivers/bootcount/bootcount_davinci.c
  * http://git.ti.com/ti-u-boot/ti-u-boot/blobs/master/arch/arm/include/asm/davinci_rtc.h
- * https://github.com/radii/devmem2
- * https://stackoverflow.com/a/12041352/213983
  *
  * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  * Copyright (c) 2018 VoltServer.

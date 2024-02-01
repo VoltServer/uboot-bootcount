@@ -1,6 +1,10 @@
 /**
  * Memory access
  *
+ * See:
+ * https://github.com/radii/devmem2
+ * https://stackoverflow.com/a/12041352/213983
+ *
  * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  *
  * Copyright (c) 2023 Amarula Solutions, Dario Binacchi <dario.binacchi@amarulasolutions.com>
