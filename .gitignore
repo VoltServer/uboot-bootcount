@@ -19,3 +19,5 @@ stamp-h1
 bootcount
 autoscan.log
 configure.scan
+
+*.tar.gz
