@@ -2,6 +2,9 @@
  * Access and reset u-boot's "bootcount" counter for the STM32MP1 platform
  * which is stored in the TAMP_BKP21R.
  *
+ * See:
+ * https://wiki.st.com/stm32mpu/wiki/STM32MP15_backup_registers#Boot_counter_feature
+ *
  * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
  * Copyright (c) 2018 VoltServer.
  *
