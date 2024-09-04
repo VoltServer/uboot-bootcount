@@ -87,6 +87,13 @@ Compatible platforms:
  * `fsl,imx8mp`
  * `fsl,imx8mq`
 
+### NXP iMX93
+
+NXP iMX93 uses the `BBNSM GPR0` register.
+
+Compatible platforms:
+ * `fsl,imx93`
+
 ### I2C EEPROM
 
 Chipsets without a dedicated register can use I2C EEPROM.

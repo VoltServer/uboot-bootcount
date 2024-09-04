@@ -31,6 +31,7 @@
 #include "dt.h"
 #include "am33xx.h"
 #include "imx8m.h"
+#include "imx93.h"
 #include "stm32mp1.h"
 #include "i2c_eeprom.h"
 
@@ -53,6 +54,11 @@ static const struct platform platforms[] = {
      .detect = is_imx8m,
      .read_bootcount = imx8m_read_bootcount,
      .write_bootcount = imx8m_write_bootcount
+    },
+    {.name = IMX93_PLAT_NAME,
+     .detect = is_imx93,
+     .read_bootcount = imx93_read_bootcount,
+     .write_bootcount = imx93_write_bootcount
     },
     {.name = STM32MP1_PLAT_NAME,
      .detect = is_stm32mp1,
@@ -184,6 +190,8 @@ int main(int argc, char *argv[]) {
                     "Read or set the u-boot 'bootcount'.  Presently supports the following:\n"
                     "  * RTC SCRATCH2 register on TI AM33xx devices\n"
                     "  * TAMP_BKP21R register on STM32MP1 devices\n"
+                    "  * SNVS_LPGPR0 register on IMX8M devices\n"
+                    "  * BBNSM_GPR0 register on IMX93 devices\n"
                     "  * generic DM I2C EEPROM via /sys/bus/i2c/devices/\n"
                     "If invoked without any arguments, this prints the current 'bootcount'\n"
                     "value to stdout.\n\n"
