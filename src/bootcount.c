@@ -30,6 +30,7 @@
 #include "constants.h"
 #include "dt.h"
 #include "am33xx.h"
+#include "am62x.h"
 #include "imx8m.h"
 #include "imx93.h"
 #include "stm32mp1.h"
@@ -49,6 +50,11 @@ static const struct platform platforms[] = {
      .detect = is_am33,
      .read_bootcount = am33_read_bootcount,
      .write_bootcount = am33_write_bootcount
+    },
+    {.name = AM62_PLAT_NAME,
+     .detect = is_am62,
+     .read_bootcount = am62_read_bootcount,
+     .write_bootcount = am62_write_bootcount
     },
     {.name = IMX8M_PLAT_NAME,
      .detect = is_imx8m,
