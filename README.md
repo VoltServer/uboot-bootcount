@@ -54,6 +54,11 @@ make install DESTDIR=$LOCATION_OF_CHROOT
 
 During development, periodically run `autoscan` to detect if changes should be made to `configure.ac`.
 
+## Cross-platform using Docker
+
+There is a `Dockerfile` that can be used to build for armhf and aarch64 on non-linux hosts that support Docker desktop.  See `build-all.sh` for an
+automated script that generates build artifacts for both.
+
 
 # Supported Platforms
 
