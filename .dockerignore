@@ -1,6 +1,7 @@
 # Ignore VCS and build outputs
 .git
 .gitignore
+.github
 .vscode
 *.tar.gz
 dist
