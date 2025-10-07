@@ -22,4 +22,8 @@
 
 #include <stdbool.h>
 
+/* Root of flattened DT in sysfs (preferred for runtime property access) */
+#define DT_ROOT "/sys/firmware/devicetree/base"
+
+/* /proc helper: check if SoC compatible string is present */
 bool is_compatible_soc(const char* compat);
