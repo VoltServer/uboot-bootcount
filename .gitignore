@@ -21,3 +21,5 @@ autoscan.log
 configure.scan
 
 *.tar.gz
+
+dist/

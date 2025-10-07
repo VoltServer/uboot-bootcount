@@ -1,0 +1,25 @@
+# Ignore VCS and build outputs
+.git
+.gitignore
+.vscode
+*.tar.gz
+dist
+Dockerfile
+Jenkinsfile
+*.md5
+
+# Autotools generated (will be regenerated in container)
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+config.h
+config.h.in*
+configure
+depcomp
+install-sh
+missing
+stamp-h1
+src/.deps
+src/Makefile
+src/Makefile.in

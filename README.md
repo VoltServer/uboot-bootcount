@@ -45,7 +45,7 @@ DEBUG: Write value 65534
 # Development
 
 Assuming you're doing a cross-build from x86 host to ARM target:
-```
+```sh
 ./autogen.sh
 ./configure --host=arm-linux-gnueabihf --prefix=/usr
 make
@@ -53,6 +53,15 @@ make install DESTDIR=$LOCATION_OF_CHROOT
 ```
 
 During development, periodically run `autoscan` to detect if changes should be made to `configure.ac`.
+
+## Cross-platform build with Docker
+
+```sh
+docker buildx build \
+  --platform linux/arm64,linux/arm/v7 \
+  --target dist \
+  --output type=local,dest=dist .
+```
 
 
 # Supported Platforms
