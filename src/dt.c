@@ -31,40 +31,42 @@
  * Read /proc/device-tree/compatible to detect hardware platform, which
  * can be used to determine which bootcount strategy to use
  */
-bool is_compatible_soc(const char* compat_str) {
-    FILE *fd = fopen(DT_COMPATIBLE_NODE, "r");
+/* Static cache of the compatible property (loaded lazily). If compat_len == 0 we try again. */
+static char compat_buf[512];
+static size_t compat_len = 0;
 
-    if (fd == NULL) {
-        fprintf(stderr, "No DT node " DT_COMPATIBLE_NODE
-                " while searching for \"%s\"\n", compat_str);
-        return false;
+static void read_compatible_node(void)
+{
+    if (compat_len != 0)
+        return; /* already loaded */
+    FILE *fd = fopen(DT_COMPATIBLE_NODE, "rb");
+    if (!fd)
+        return;
+    compat_len = fread(compat_buf, 1, sizeof(compat_buf) - 1, fd);
+    fclose(fd);
+    if (compat_len == 0)
+        return; /* leave compat_len == 0 so we may retry later */
+    if (compat_len == sizeof(compat_buf) - 1) {
+        fprintf(stderr, "Warning: compat string " DT_COMPATIBLE_NODE " truncated to %zu\n", sizeof(compat_buf));
     }
+    DEBUG_PRINTF("Read from " DT_COMPATIBLE_NODE ":\n");
+    compat_buf[compat_len] = '\0'; /* ensure it is null terminated */
+    char *ptr = compat_buf;
+    while (ptr < compat_buf + compat_len && *ptr) {
+        DEBUG_PRINTF("  %s\n", ptr);
+        ptr += strlen(ptr) + 1;
+    }
+}
 
-    char compatible[100];
-    bool is_match = false;
-    int bytes_read = 0;
-
-    while (feof(fd) == 0 && ferror(fd) == 0 && ! is_match) {
-        // Note: if the 'compatible' node specifies multiple strings, they will be
-        // null-delineated. Therefore fread() can be used to read the whole file however
-        // string functions like like strstr() will only consider data up to the first null byte.
-        // We need to continue comparing strings up to bytes_read
-
-        if ( (bytes_read = fread(compatible, 1, sizeof(compatible)-1, fd)) > 0 ) {
-            compatible[bytes_read] = 0; // null-terminate the full string
-            char *ptr = compatible;
-            while( ptr < compatible+bytes_read ) {
-                DEBUG_PRINTF("Read from " DT_COMPATIBLE_NODE ": %s\n", ptr);
-                if(strstr(ptr, compat_str) != NULL) {
-                    DEBUG_PRINTF("   Found! %s\n", compat_str);
-                    is_match = true;
-                    break;
-                }
-                ptr += strlen(ptr) + 1;
-            }
+bool is_compatible_soc(const char* compat_str) {
+    read_compatible_node();
+    if (compat_len == 0)
+        return false;
+    for (char *p = compat_buf; p < compat_buf + compat_len && *p; p += strlen(p) + 1) {
+        if (strstr(p, compat_str) != NULL) {
+            DEBUG_PRINTF("   Found! %s\n", compat_str);
+            return true;
         }
     }
-
-    fclose(fd);
-    return is_match;
+    return false;
 }
