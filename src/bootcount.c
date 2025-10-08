@@ -35,6 +35,7 @@
 #include "stm32mp1.h"
 #include "i2c_eeprom.h"
 #include "dm_eeprom.h"
+#include "dm_rtc.h"
 
 struct platform {
     const char *name;
@@ -70,6 +71,11 @@ static const struct platform platforms[] = {
      .detect = dm_eeprom_exists,
      .read_bootcount = dm_eeprom_read_bootcount,
      .write_bootcount = dm_eeprom_write_bootcount
+    },
+    {.name = DM_RTC_NAME,
+     .detect = dm_rtc_exists,
+     .read_bootcount = dm_rtc_read_bootcount,
+     .write_bootcount = dm_rtc_write_bootcount
     },
     {.name = EEPROM_NAME,
      .detect = eeprom_exists,
