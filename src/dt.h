@@ -21,9 +21,24 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 /* Root of flattened DT in sysfs (preferred for runtime property access) */
 #define DT_ROOT "/sys/firmware/devicetree/base"
 
 /* /proc helper: check if SoC compatible string is present */
 bool is_compatible_soc(const char* compat);
+
+/* Returns true if DT_ROOT exists */
+bool dt_root_available(void);
+
+/* Read big-endian u32 from a property file path. Returns true on success. */
+bool dt_read_u32(const char *path, uint32_t *val);
+
+/* Find node directory (full path) for a given phandle. Returns true on success. */
+bool dt_find_phandle_node(uint32_t phandle, char *out, size_t outlen);
+
+/* Read a u32 property (big-endian) from inside a node directory. Returns true on success. */
+bool dt_node_read_u32(const char *node_dir, const char *prop, uint32_t *val);
+

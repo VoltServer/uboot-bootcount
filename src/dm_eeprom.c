@@ -61,107 +61,12 @@
  *
  */
 
-static bool dt_root_available(void)
-{
-    struct stat sb;
-    return (stat(DT_ROOT, &sb) == 0 && S_ISDIR(sb.st_mode));
-}
-
-/* Utility: read a big-endian 32-bit value from a property file */
-static bool read_u32(const char *path, uint32_t *val)
-{
-    FILE *f = fopen(path, "rb");
-    if (!f)
-        return false;
-    unsigned char b[4];
-    size_t r = fread(b, 1, 4, f);
-    fclose(f);
-    if (r != 4)
-        return false;
-    *val = (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
-    return true;
-}
-
-/* directory traversal to locate a node's path by phandle. */
-static bool scan_dir_for_phandle(const char *dir, uint32_t target, char *out, size_t outlen, int depth)
-{
-    if (depth > 8) /* arbitrary safety limit */
-        return false;
-
-    DIR *d = opendir(dir);
-    if (!d)
-        return false;
-    struct dirent *e;
-    bool found = false;
-    while (!found && (e = readdir(d))) {
-        if (e->d_name[0] == '.' )
-            continue; /* skip . and .. and hidden */
-        char path[PATH_MAX];
-        int plen = snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
-        if (plen < 0 || plen >= (int)sizeof(path))
-            continue; /* truncated */
-
-        /* Each node is a directory containing (possibly) phandle files */
-        struct stat st;
-        if (lstat(path, &st) != 0)
-            continue;
-        if (!S_ISDIR(st.st_mode))
-            continue;
-        /* Check for phandle or linux,phandle inside */
-        char ph_path[PATH_MAX];
-        uint32_t val;
-        plen = snprintf(ph_path, sizeof(ph_path), "%s/phandle", path);
-        if (plen >= 0 && plen < (int)sizeof(ph_path)) {
-            if (read_u32(ph_path, &val) && val == target) {
-                strncpy(out, path, outlen - 1);
-                out[outlen - 1] = 0;
-                found = true;
-                break;
-            }
-        }
-        /* legacy linux,phandle */
-        plen = snprintf(ph_path, sizeof(ph_path), "%s/linux,phandle", path);
-        if (plen >= 0 && plen < (int)sizeof(ph_path)) {
-            if (read_u32(ph_path, &val) && val == target) {
-                strncpy(out, path, outlen - 1);
-                out[outlen - 1] = 0;
-                found = true;
-                break;
-            }
-        }
-        /* Recurse only if not found locally */
-        if (scan_dir_for_phandle(path, target, out, outlen, depth + 1)) {
-            found = true;
-            break;
-        }
-    }
-    closedir(d);
-    return found;
-}
-
-/* Given a phandle value, find the corresponding node directory path */
-static bool find_phandle_node(uint32_t phandle, char *out, size_t outlen)
-{
-    return scan_dir_for_phandle(DT_ROOT, phandle, out, outlen, 0);
-}
-
-/* Read a u32 property inside a node given its directory path */
-static bool node_read_u32(const char *node_dir, const char *prop, uint32_t *val)
-{
-    char path[PATH_MAX];
-    int n = snprintf(path, sizeof(path), "%s/%s", node_dir, prop);
-    if (n < 0 || n >= (int)sizeof(path))
-        return false;
-    return read_u32(path, val);
-}
-
 /* Extract the reg property (EEPROM I2C slave address) */
 static bool get_eeprom_address(const char *eeprom_node, uint8_t *addr)
 {
     uint32_t reg;
-    if (!node_read_u32(eeprom_node, "reg", &reg))
+    if (!dt_node_read_u32(eeprom_node, "reg", &reg))
         return false;
-    /* 'reg' may encode address and size; typical simple case it's just addr */
     *addr = (uint8_t)(reg & 0xFF);
     return true;
 }
@@ -187,18 +92,18 @@ static bool discover_dm_eeprom(void)
     if (snprintf(chosen_bc_path, sizeof(chosen_bc_path), DT_ROOT "/chosen/u-boot,bootcount-device") >= (int)sizeof(chosen_bc_path))
         return false;
     uint32_t bc_phandle;
-    if (!read_u32(chosen_bc_path, &bc_phandle)) {
+    if (!dt_read_u32(chosen_bc_path, &bc_phandle)) {
         return false; /* No chosen bootcount device */
     }
     DEBUG_PRINTF(" Found bootcount-device phandle %u\n", bc_phandle);
     char bc_node[PATH_MAX];
-    if (!find_phandle_node(bc_phandle, bc_node, sizeof(bc_node)))
+    if (!dt_find_phandle_node(bc_phandle, bc_node, sizeof(bc_node)))
         return false;
     DEBUG_PRINTF(" Found bootcount node %s\n", bc_node);
 
     /* Read offset (optional) */
     uint32_t offset = 0;
-    node_read_u32(bc_node, "offset", &offset); /* ignore failure => 0 */
+    dt_node_read_u32(bc_node, "offset", &offset); /* ignore failure => 0 */
     g_offset = (off_t)offset;
     DEBUG_PRINTF(" Using offset 0x%lx\n", (unsigned long)g_offset);
 
@@ -209,7 +114,7 @@ static bool discover_dm_eeprom(void)
     DEBUG_PRINTF(" Found i2c-eeprom phandle %u\n", eeprom_phandle);
 
     char eeprom_node[PATH_MAX];
-    if (!find_phandle_node(eeprom_phandle, eeprom_node, sizeof(eeprom_node)))
+    if (!dt_find_phandle_node(eeprom_phandle, eeprom_node, sizeof(eeprom_node)))
         return false;
     DEBUG_PRINTF(" Found eeprom node %s\n", eeprom_node);
     uint8_t slave_addr;
