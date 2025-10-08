@@ -147,28 +147,23 @@ static bool discover_dm_eeprom(void)
     return true;
 }
 
-static int dm_eeprom_open(void)
+int dm_eeprom_open_path(const char *path, off_t offset)
 {
-    if (!discover_dm_eeprom())
+    if (path == NULL)
         return E_DEVICE;
-    int fd = open(g_eeprom_sysfs_path, O_RDWR);
+    int fd = open(path, O_RDWR);
     if (fd < 0)
         return E_DEVICE;
-    if (lseek(fd, g_offset, SEEK_SET) == -1) {
+    if (lseek(fd, offset, SEEK_SET) == -1) {
         close(fd);
         return E_DEVICE;
     }
     return fd;
 }
 
-bool dm_eeprom_exists(void)
+int dm_eeprom_read_path(const char *path, off_t offset, uint8_t magic, uint16_t *val)
 {
-    return discover_dm_eeprom();
-}
-
-int dm_eeprom_read_bootcount(uint16_t *val)
-{
-    int fd = dm_eeprom_open();
+    int fd = dm_eeprom_open_path(path, offset);
     if (fd < 0)
         return fd;
 
@@ -179,7 +174,7 @@ int dm_eeprom_read_bootcount(uint16_t *val)
     }
     close(fd);
 
-    if (bytes[1] != DM_I2C_MAGIC) {
+    if (bytes[1] != magic) {
         /* Upstream DM driver resets counter to 0 on invalid magic.
            We have a reset command, so do not write on a read operation
          */
@@ -189,14 +184,14 @@ int dm_eeprom_read_bootcount(uint16_t *val)
     return 0;
 }
 
-int dm_eeprom_write_bootcount(uint16_t val)
+int dm_eeprom_write_path(const char *path, off_t offset, uint8_t magic, uint16_t val)
 {
-    int fd = dm_eeprom_open();
+    int fd = dm_eeprom_open_path(path, offset);
     if (fd < 0)
         return fd;
     unsigned char bytes[2];
     bytes[0] = (unsigned char)(val & 0xff);
-    bytes[1] = DM_I2C_MAGIC;
+    bytes[1] = magic;
     ssize_t written = write(fd, bytes, sizeof(bytes));
     if (written != (ssize_t)sizeof(bytes)) {
         close(fd);
@@ -206,4 +201,18 @@ int dm_eeprom_write_bootcount(uint16_t val)
     return 0;
 }
 
+bool dm_eeprom_exists(void)
+{
+    return discover_dm_eeprom();
+}
+
+int dm_eeprom_read_bootcount(uint16_t *val)
+{
+    return dm_eeprom_read_path(g_eeprom_sysfs_path, g_offset, DM_I2C_MAGIC, val);
+}
+
+int dm_eeprom_write_bootcount(uint16_t val)
+{
+    return dm_eeprom_write_path(g_eeprom_sysfs_path, g_offset, DM_I2C_MAGIC, val);
+}
 
