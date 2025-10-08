@@ -202,3 +202,14 @@ int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t o
     out[r] = 0;
     return (int)r;
 }
+
+/* Compare two filesystem objects for identity (same underlying node). */
+bool same_fs_node(const char *a, const char *b)
+{
+    struct stat sa, sb;
+    if (stat(a, &sa) != 0)
+        return false;
+    if (stat(b, &sb) != 0)
+        return false;
+    return (sa.st_dev == sb.st_dev) && (sa.st_ino == sb.st_ino);
+}
