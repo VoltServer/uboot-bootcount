@@ -173,3 +173,32 @@ bool dt_node_read_u32(const char *node_dir, const char *prop, uint32_t *val)
     return dt_read_u32(path, val);
 }
 
+/*
+ * dt_node_read_str
+ * Returns: number of bytes read (excluding terminator) on success.
+ *          -E_DEVICE (re-using existing error codes) on I/O failure or empty.
+ * NOTE: The string is always null-terminated on success (and on partial reads).
+ */
+int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t outlen)
+{
+    if (!out || outlen == 0)
+        return E_DEVICE;
+
+    char path[PATH_MAX];
+    int n = snprintf(path, sizeof(path), "%s/%s", node_dir, prop);
+    if (n < 0 || n >= (int)sizeof(path))
+        return E_DEVICE;
+
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return E_DEVICE;
+
+    size_t r = fread(out, 1, outlen - 1, f);
+    fclose(f);
+    if (r == 0) {
+        out[0] = 0;
+        return E_DEVICE;
+    }
+    out[r] = 0;
+    return (int)r;
+}

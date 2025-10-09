@@ -42,3 +42,4 @@ bool dt_find_phandle_node(uint32_t phandle, char *out, size_t outlen);
 /* Read a u32 property (big-endian) from inside a node directory. Returns true on success. */
 bool dt_node_read_u32(const char *node_dir, const char *prop, uint32_t *val);
 
+int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t outlen);
