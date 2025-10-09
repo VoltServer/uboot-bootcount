@@ -1,0 +1,259 @@
+
+/**
+ * dm-eeprom bootcount implementation for linux userspace.
+ * Ref: https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/bootcount_dm_i2c.c
+ *
+ * This file is part of the uboot-bootcount (https://github.com/VoltServer/uboot-bootcount).
+ * Copyright (c) 2018 VoltServer.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <limits.h>
+
+#include <dirent.h>
+#include <sys/types.h>
+
+#include "dt.h"
+#include "constants.h"
+
+#define DM_I2C_MAGIC 0x55
+#define I2C_SYSFS_DEVICES "/sys/bus/i2c/devices"
+
+/* Compare two filesystem objects for identity (same underlying node). */
+static bool same_fs_node(const char *a, const char *b)
+{
+    struct stat sa, sb;
+    if (stat(a, &sa) != 0)
+        return false;
+    if (stat(b, &sb) != 0)
+        return false;
+    return (sa.st_dev == sb.st_dev) && (sa.st_ino == sb.st_ino);
+}
+
+/*
+ * Runtime discovery of the EEPROM used for bootcount via the flattened
+ * device tree exported at /proc/device-tree.
+ *
+ * The definition looks like this:
+ *
+ *    chosen {
+ *        // see: u-boot/drivers/bootcount/bootcount-uclass.c
+ *        u-boot,bootcount-device = <&bootcount_i2c_eeprom>;
+ *    };
+ *    bootcount_i2c_eeprom: bc_i2c_eeprom {
+ *        // see: u-boot/drivers/bootcount/bootcount_dm_i2c.c
+ *        compatible = "u-boot,bootcount-i2c";
+ *        i2cbcdev = <&eeprom0>;
+ *        offset = <0x30>;
+ *    };
+ *
+ * see: https://github.com/u-boot/u-boot/blob/master/drivers/bootcount/bootcount_dm_i2c.c
+ *
+ * Read the phandle /sys/firmware/devicetree/base/<device>/i2cbcdev
+ * Look for the device at /sys/bus/i2c/devices/<bus>-<addr>/eeprom
+ *
+ */
+
+/* Extract the reg property (EEPROM I2C slave address) */
+// static bool get_eeprom_address(const char *eeprom_node, uint8_t *addr)
+// {
+//     uint32_t reg;
+//     if (!dt_node_read_u32(eeprom_node, "reg", &reg))
+//         return false;
+//     *addr = (uint8_t)(reg & 0xFF);
+//     return true;
+// }
+
+/* Global cached discovered path and offset */
+static bool g_inited = false;
+static char g_eeprom_sysfs_path[PATH_MAX];
+static off_t g_offset = 0;
+
+static bool discover_dm_eeprom(void)
+{
+    if (g_inited)
+        return true;
+    DEBUG_PRINTF("Discovering DM I2C EEPROM bootcount device...\n");
+
+    uint32_t bc_phandle;
+    if (!dt_read_u32(DT_ROOT "/chosen/u-boot,bootcount-device", &bc_phandle)) {
+        DEBUG_PRINTF(" No chosen/u-boot,bootcount-device in device tree\n");
+        return false; /* No chosen bootcount device */
+    }
+    //DEBUG_PRINTF(" Found bootcount-device phandle %u\n", bc_phandle);
+    char bc_node[PATH_MAX];
+    if (!dt_find_phandle_node(bc_phandle, bc_node, sizeof(bc_node)))
+        return false;
+    DEBUG_PRINTF(" Found bootcount node %s\n", bc_node);
+    /* if the bc_node/compatible does not match "u-boot,bootcount-i2c"
+       then this is not the correct driver: */
+    char compatible[100];
+    int compat_len = dt_node_read_str(bc_node, "compatible", compatible, sizeof(compatible));
+    if (compat_len <= 0 || strstr(compatible, "u-boot,bootcount-i2c") == NULL) {
+        DEBUG_PRINTF(" Chosen bootcount node is not compatible: '%s'\n", compatible);
+        return false;
+    }
+
+    /* Read offset (optional) */
+    uint32_t offset = 0;
+    dt_node_read_u32(bc_node, "offset", &offset); /* ignore failure => 0 */
+    g_offset = (off_t)offset;
+    DEBUG_PRINTF(" Using offset 0x%lx\n", (unsigned long)g_offset);
+
+    /* Read i2cbcdev phandle */
+    uint32_t eeprom_phandle;
+    if (!dt_node_read_u32(bc_node, "i2cbcdev", &eeprom_phandle))
+        return false;
+    DEBUG_PRINTF(" Found i2cbcdev phandle %u\n", eeprom_phandle);
+
+    char eeprom_device_path[PATH_MAX];
+    if (!dt_find_phandle_node(eeprom_phandle, eeprom_device_path, sizeof(eeprom_device_path)))
+        return false;
+    DEBUG_PRINTF(" Found eeprom node %s\n", eeprom_device_path);
+    struct stat target_st;
+    if (stat(eeprom_device_path, &target_st) != 0) {
+        DEBUG_PRINTF(" stat() failed on target node %s\n", eeprom_device_path);
+        return false;
+    }
+    // uint8_t slave_addr;
+    // if (!get_eeprom_address(eeprom_node, &slave_addr))
+    //     return false;
+    // DEBUG_PRINTF(" EEPROM I2C address 0x%02x\n", slave_addr);
+
+    /* Iterate /sys/bus/i2c/devices/<bus-<addr>/of_node and compare the
+     * symlink target to the eeprom DT node path we resolved above
+     */
+    bool matched = false;
+    DIR *dev_dir = opendir(I2C_SYSFS_DEVICES);
+    if (!dev_dir)
+        return false;
+    DEBUG_PRINTF(" Scanning " I2C_SYSFS_DEVICES " for matching device ...\n");
+    // iterate all devices under /sys/bus/i2c/devices/ and find
+    struct dirent *de2;
+    while ((de2 = readdir(dev_dir))) {
+        if (de2->d_name[0] == '.')
+            continue; /* skip dot entries */
+        // int bus; unsigned int addr4;
+        // if (sscanf(de2->d_name, "%d-%04x", &bus, &addr4) != 2)
+        //     continue; /* skip non device entries */
+        // /* Fast reject: address mismatch */
+        // if ((addr4 & 0xFF) != slave_addr)
+        //     continue;
+        char link_path[PATH_MAX];
+        if (snprintf(link_path, sizeof(link_path), I2C_SYSFS_DEVICES "/%s/of_node", de2->d_name) >= (int)sizeof(link_path)) {
+            DEBUG_PRINTF(" ERROR Path truncated constructing of_node path\n");
+            continue;
+        }
+        if (!same_fs_node(link_path, eeprom_device_path)) {
+            continue;
+        }
+        DEBUG_PRINTF(" Matched device %s\n", link_path);
+        snprintf(g_eeprom_sysfs_path, sizeof(g_eeprom_sysfs_path),
+                  I2C_SYSFS_DEVICES "/%s/eeprom", de2->d_name);
+
+        /* verify the eeprom node exists: */
+        struct stat sb;
+        if (stat(g_eeprom_sysfs_path, &sb) != 0) {
+            DEBUG_PRINTF(" WARN EEPROM sysfs path %s does not exist, continuing...\n", g_eeprom_sysfs_path);
+            continue;
+        }
+        matched = true;
+        DEBUG_PRINTF(" Chose EEPROM device %s\n", g_eeprom_sysfs_path);
+        break;
+    }
+    closedir(dev_dir);
+    if (!matched)
+        return false;
+
+    /* Validate file exists */
+    struct stat sb;
+    if (stat(g_eeprom_sysfs_path, &sb) != 0)
+        return false;
+
+    g_inited = true;
+    return true;
+}
+
+static int dm_eeprom_open(void)
+{
+    if (!discover_dm_eeprom())
+        return E_DEVICE;
+    int fd = open(g_eeprom_sysfs_path, O_RDWR);
+    if (fd < 0)
+        return E_DEVICE;
+    if (lseek(fd, g_offset, SEEK_SET) == -1) {
+        close(fd);
+        return E_DEVICE;
+    }
+    return fd;
+}
+
+bool dm_eeprom_exists(void)
+{
+    return discover_dm_eeprom();
+}
+
+/* DM I2C bootcount layout:
+ * offset:   0 -> magic byte (0x55)
+ *           1 -> counter (low 8 bits)
+ */
+int dm_eeprom_read_bootcount(uint16_t *val)
+{
+    int fd = dm_eeprom_open();
+    if (fd < 0)
+        return fd;
+
+    unsigned char bytes[2];
+    if (read(fd, bytes, sizeof(bytes)) != (ssize_t)sizeof(bytes)) {
+        close(fd);
+        return E_DEVICE;
+    }
+    close(fd);
+
+    if (bytes[0] != DM_I2C_MAGIC) {
+        /* Upstream DM driver resets counter to 0 on invalid magic.
+           We have a reset command, so do not write on a read operation
+         */
+        return E_BADMAGIC;
+    }
+    *val = bytes[1];
+    return 0;
+}
+
+int dm_eeprom_write_bootcount(uint16_t val)
+{
+    int fd = dm_eeprom_open();
+    if (fd < 0)
+        return fd;
+    unsigned char bytes[2];
+    bytes[0] = DM_I2C_MAGIC;
+    bytes[1] = (unsigned char)(val & 0xff);
+    ssize_t written = write(fd, bytes, sizeof(bytes));
+    if (written != (ssize_t)sizeof(bytes)) {
+        close(fd);
+        return E_DEVICE;
+    }
+    close(fd);
+    return 0;
+}
+
+
