@@ -43,3 +43,5 @@ bool dt_find_phandle_node(uint32_t phandle, char *out, size_t outlen);
 bool dt_node_read_u32(const char *node_dir, const char *prop, uint32_t *val);
 
 int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t outlen);
+
+bool same_fs_node(const char *a, const char *b);

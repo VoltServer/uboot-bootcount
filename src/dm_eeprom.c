@@ -38,17 +38,6 @@
 #define DM_I2C_MAGIC 0x55
 #define I2C_SYSFS_DEVICES "/sys/bus/i2c/devices"
 
-/* Compare two filesystem objects for identity (same underlying node). */
-static bool same_fs_node(const char *a, const char *b)
-{
-    struct stat sa, sb;
-    if (stat(a, &sa) != 0)
-        return false;
-    if (stat(b, &sb) != 0)
-        return false;
-    return (sa.st_dev == sb.st_dev) && (sa.st_ino == sb.st_ino);
-}
-
 /*
  * Runtime discovery of the EEPROM used for bootcount via the flattened
  * device tree exported at /proc/device-tree.
@@ -193,18 +182,58 @@ static bool discover_dm_eeprom(void)
     return true;
 }
 
-static int dm_eeprom_open(void)
+int dm_eeprom_open_path(const char *path, off_t offset)
 {
-    if (!discover_dm_eeprom())
+    if (path == NULL)
         return E_DEVICE;
-    int fd = open(g_eeprom_sysfs_path, O_RDWR);
+    int fd = open(path, O_RDWR);
     if (fd < 0)
         return E_DEVICE;
-    if (lseek(fd, g_offset, SEEK_SET) == -1) {
+    if (lseek(fd, offset, SEEK_SET) == -1) {
         close(fd);
         return E_DEVICE;
     }
     return fd;
+}
+
+int dm_eeprom_read_path(const char *path, off_t offset, uint8_t magic, uint16_t *val)
+{
+    int fd = dm_eeprom_open_path(path, offset);
+    if (fd < 0)
+        return fd;
+
+    unsigned char bytes[2];
+    if (read(fd, bytes, sizeof(bytes)) != (ssize_t)sizeof(bytes)) {
+        close(fd);
+        return E_DEVICE;
+    }
+    close(fd);
+
+    if (bytes[0] != magic) {
+        /* Upstream DM driver resets counter to 0 on invalid magic.
+           We have a reset command, so do not write on a read operation
+         */
+        return E_BADMAGIC;
+    }
+    *val = bytes[1];
+    return 0;
+}
+
+int dm_eeprom_write_path(const char *path, off_t offset, uint8_t magic, uint16_t val)
+{
+    int fd = dm_eeprom_open_path(path, offset);
+    if (fd < 0)
+        return fd;
+    unsigned char bytes[2];
+    bytes[0] = magic;
+    bytes[1] = (unsigned char)(val & 0xff);
+    ssize_t written = write(fd, bytes, sizeof(bytes));
+    if (written != (ssize_t)sizeof(bytes)) {
+        close(fd);
+        return E_DEVICE;
+    }
+    close(fd);
+    return 0;
 }
 
 bool dm_eeprom_exists(void)
@@ -218,42 +247,11 @@ bool dm_eeprom_exists(void)
  */
 int dm_eeprom_read_bootcount(uint16_t *val)
 {
-    int fd = dm_eeprom_open();
-    if (fd < 0)
-        return fd;
-
-    unsigned char bytes[2];
-    if (read(fd, bytes, sizeof(bytes)) != (ssize_t)sizeof(bytes)) {
-        close(fd);
-        return E_DEVICE;
-    }
-    close(fd);
-
-    if (bytes[0] != DM_I2C_MAGIC) {
-        /* Upstream DM driver resets counter to 0 on invalid magic.
-           We have a reset command, so do not write on a read operation
-         */
-        return E_BADMAGIC;
-    }
-    *val = bytes[1];
-    return 0;
+    return dm_eeprom_read_path(g_eeprom_sysfs_path, g_offset, DM_I2C_MAGIC, val);
 }
 
 int dm_eeprom_write_bootcount(uint16_t val)
 {
-    int fd = dm_eeprom_open();
-    if (fd < 0)
-        return fd;
-    unsigned char bytes[2];
-    bytes[0] = DM_I2C_MAGIC;
-    bytes[1] = (unsigned char)(val & 0xff);
-    ssize_t written = write(fd, bytes, sizeof(bytes));
-    if (written != (ssize_t)sizeof(bytes)) {
-        close(fd);
-        return E_DEVICE;
-    }
-    close(fd);
-    return 0;
+    return dm_eeprom_write_path(g_eeprom_sysfs_path, g_offset, DM_I2C_MAGIC, val);
 }
-
 
