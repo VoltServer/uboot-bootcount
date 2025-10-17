@@ -173,3 +173,70 @@ bool dt_node_read_u32(const char *node_dir, const char *prop, uint32_t *val)
     return dt_read_u32(path, val);
 }
 
+/*
+ * dt_node_read_str
+ * Returns: number of bytes read (excluding terminator) on success.
+ *          -E_DEVICE (re-using existing error codes) on I/O failure or empty.
+ * NOTE: The string is always null-terminated on success (and on partial reads).
+ */
+int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t outlen)
+{
+    if (!out || outlen == 0)
+        return E_DEVICE;
+
+    char path[PATH_MAX];
+    int n = snprintf(path, sizeof(path), "%s/%s", node_dir, prop);
+    if (n < 0 || n >= (int)sizeof(path))
+        return E_DEVICE;
+
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return E_DEVICE;
+
+    size_t r = fread(out, 1, outlen - 1, f);
+    fclose(f);
+    if (r == 0) {
+        out[0] = 0;
+        return E_DEVICE;
+    }
+    out[r] = 0;
+    return (int)r;
+}
+
+/* Compare two filesystem objects for identity (same underlying node). */
+bool same_fs_node(const char *a, const char *b)
+{
+    struct stat sa, sb;
+    if (stat(a, &sa) != 0)
+        return false;
+    if (stat(b, &sb) != 0)
+        return false;
+    return (sa.st_dev == sb.st_dev) && (sa.st_ino == sb.st_ino);
+}
+
+bool dt_get_chosen_bootcount_node(const char *compat_str, char* bc_node, size_t bc_node_len)
+{
+    if (!dt_root_available())
+        return false;
+
+    char bc_path[128];
+    if (!dt_node_read_str(DT_ROOT "/chosen", "u-boot,bootcount-device", bc_path, sizeof(bc_path))) {
+        DEBUG_PRINTF(" No chosen/u-boot,bootcount-device in device tree\n");
+        return false; /* No chosen bootcount device */
+        // TODO find the first bootcount node with compatible = compat_str and use it
+    }
+    if (snprintf(bc_node, bc_node_len, DT_ROOT "%s", bc_path) >= (int)bc_node_len) {
+        DEBUG_PRINTF(" ERROR Path truncated building device node path for %s\n", bc_path);
+        return false;
+    }
+
+    /* if the bc_node/compatible does not match "u-boot,bootcount-rtc"
+       then this is not the correct driver: */
+    char compatible[100];
+    int bc_compat_len = dt_node_read_str(bc_node, "compatible", compatible, sizeof(compatible));
+    if (bc_compat_len <= 0 || strstr(compatible, compat_str) == NULL) {
+        DEBUG_PRINTF(" Chosen bootcount node is not compatible: '%s'\n", compatible);
+        return false;
+    }
+    return true;
+}
