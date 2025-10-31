@@ -8,7 +8,7 @@
 #
 
 #FROM debian:bookworm-slim
-FROM ubuntu:22.04
+FROM ubuntu:22.04 AS build
 
 #ARG TARGET_ARCH=arm-linux-gnueabihf
 ARG TARGET_ARCH=aarch64-linux-gnu
@@ -37,5 +37,6 @@ RUN ./configure --prefix=/usr --host=${TARGET_ARCH}
 RUN make
 RUN make binary-dist
 
-#ENTRYPOINT [ "/bin/bash", "-l" ]
-CMD [ "/bin/bash", "-l" ]
+# Minimal export stage: only copy dist artifacts
+FROM scratch AS export
+COPY --from=build /opt/dist/ .
