@@ -56,9 +56,25 @@ During development, periodically run `autoscan` to detect if changes should be m
 
 ## Cross-platform using Docker
 
-There is a `Dockerfile` that can be used to build for armhf and aarch64 on non-linux hosts that support Docker desktop.  See `build-all.sh` for an
-automated script that generates build artifacts for both.
+There is a `Dockerfile` that can be used to build for armhf and aarch64 on non-linux hosts that support Docker Desktop.  A `docker-bake.hcl` file plus the
+`build-all.sh` helper script will perform parallel multi-architecture builds using Docker Buildx.
 
+```
+./build-all.sh
+
+```
+Resulting tarballs are copied to `dist/`.
+
+To build only one architecture:
+```
+docker buildx bake armhf
+docker buildx bake arm64
+```
+
+Override args example:
+```
+docker buildx bake armhf --set armhf.args.TARGET_ARCH=arm-linux-gnueabihf
+```
 
 # Supported Platforms
 
