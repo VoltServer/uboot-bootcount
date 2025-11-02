@@ -1,6 +1,7 @@
-AM_CFLAGS               = -std=c99 -pedantic -W -Wall -Wextra -Wno-unused-parameter -Wshadow
+AM_CFLAGS               = -std=c99 -pedantic -W -Wall -Wextra -Wno-unused-parameter -Wshadow -Wundef
+AM_CFLAGS              += -Werror
 
 sbin_PROGRAMS           = bootcount
-bootcount_SOURCES       = bootcount.c am33xx.c stm32mp1.c i2c_eeprom.c memory.c \
+bootcount_SOURCES       = bootcount.c am33xx.c stm32mp1.c i2c_eeprom.c dm_eeprom.c memory.c \
                           dt.c imx8m.c imx93.c
 

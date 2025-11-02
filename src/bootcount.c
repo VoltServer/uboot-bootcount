@@ -34,6 +34,7 @@
 #include "imx93.h"
 #include "stm32mp1.h"
 #include "i2c_eeprom.h"
+#include "dm_eeprom.h"
 
 struct platform {
     const char *name;
@@ -64,6 +65,11 @@ static const struct platform platforms[] = {
      .detect = is_stm32mp1,
      .read_bootcount = stm32mp1_read_bootcount,
      .write_bootcount = stm32mp1_write_bootcount
+    },
+    {.name = DM_EEPROM_NAME,
+     .detect = dm_eeprom_exists,
+     .read_bootcount = dm_eeprom_read_bootcount,
+     .write_bootcount = dm_eeprom_write_bootcount
     },
     {.name = EEPROM_NAME,
      .detect = eeprom_exists,

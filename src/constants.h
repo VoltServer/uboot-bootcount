@@ -4,6 +4,10 @@
 #include <config.h>
 #include <stdbool.h>
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #define DEBUG false
 #define BOOTCOUNT_MAGIC   0xB001C041ul    // from u-boot include/common.h
 
