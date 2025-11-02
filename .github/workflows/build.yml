@@ -21,7 +21,9 @@ jobs:
       with:
         submodules: recursive
 
-    - run: sudo apt install -y gcc-${{ matrix.target}} build-essential
+    - run: |
+        sudo apt update
+        sudo apt install -y gcc-${{ matrix.target}} build-essential
     - run: ./autogen.sh
     - run: ./configure --host=${{ matrix.target }} --prefix=/usr
     - run: make binary-dist
