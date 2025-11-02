@@ -139,7 +139,7 @@ static bool dt_scan_dir_for_phandle(const char *dir, uint32_t target,
 
         /* Try legacy 'linux,phandle' */
         plen = snprintf(ph_path, sizeof(ph_path), "%s/linux,phandle", path);
-        if (!found && plen >= 0 && plen < (int)sizeof(ph_path)) {
+        if (plen >= 0 && plen < (int)sizeof(ph_path)) {
             if (dt_read_u32(ph_path, &val) && val == target) {
                 strncpy(out, path, outlen - 1);
                 out[outlen - 1] = 0;
@@ -149,7 +149,7 @@ static bool dt_scan_dir_for_phandle(const char *dir, uint32_t target,
         }
 
         /* Recurse if not matched here */
-        if (!found && dt_scan_dir_for_phandle(path, target, out, outlen, depth + 1)) {
+        if (dt_scan_dir_for_phandle(path, target, out, outlen, depth + 1)) {
             found = true;
             break;
         }
@@ -220,23 +220,81 @@ bool dt_get_chosen_bootcount_node(const char *compat_str, char* bc_node, size_t 
         return false;
 
     char bc_path[128];
-    if (!dt_node_read_str(DT_ROOT "/chosen", "u-boot,bootcount-device", bc_path, sizeof(bc_path))) {
-        DEBUG_PRINTF(" No chosen/u-boot,bootcount-device in device tree\n");
-        return false; /* No chosen bootcount device */
-        // TODO find the first bootcount node with compatible = compat_str and use it
+    if (dt_node_read_str(DT_ROOT "/chosen", "u-boot,bootcount-device", bc_path, sizeof(bc_path))) {
+        DEBUG_PRINTF(" Found chosen/u-boot,bootcount-device %s\n", bc_path);
+        if (snprintf(bc_node, bc_node_len, DT_ROOT "%s", bc_path) >= (int)bc_node_len) {
+            DEBUG_PRINTF(" ERROR Path truncated building device node path for %s\n", bc_path);
+            return false;
+        }
+        // else bc_node is set to the full path of the chosen bootcount device node
     }
-    if (snprintf(bc_node, bc_node_len, DT_ROOT "%s", bc_path) >= (int)bc_node_len) {
-        DEBUG_PRINTF(" ERROR Path truncated building device node path for %s\n", bc_path);
-        return false;
+    else {
+      // find the first device with compatible = 'u-boot,bootcount*' and see if it matches our compat_str
+      if (!dt_find_compatible_node("u-boot,bootcount", bc_node, sizeof(bc_node))) {
+          DEBUG_PRINTF(" No compatible node found for bootcount driver '%s'\n", compat_str);
+          return false;
+      }
+      // else bc_node is set to the full path of the first matching bootcount device node
     }
 
-    /* if the bc_node/compatible does not match "u-boot,bootcount-rtc"
-       then this is not the correct driver: */
-    char compatible[100];
+    /* if the bc_node/compatible does not match `compat_str`, then this is not the correct driver: */
+    char compatible[128];
     int bc_compat_len = dt_node_read_str(bc_node, "compatible", compatible, sizeof(compatible));
     if (bc_compat_len <= 0 || strstr(compatible, compat_str) == NULL) {
-        DEBUG_PRINTF(" Chosen bootcount node is not compatible: '%s'\n", compatible);
+        DEBUG_PRINTF(" Found bootcount node is not compatible: '%s'\n", compatible);
         return false;
     }
     return true;
+}
+
+/* Recursive directory traversal to locate a device node with a /compatible property that matches compat_str  */
+static bool dt_scan_dir_for_compatible(const char *dir, const char *compat_str, char *out, size_t outlen, int depth)
+{
+    if (depth > 8) /* safety recursion limit */
+        return false;
+
+    DIR *d = opendir(dir);
+    if (!d)
+        return false;
+
+    struct dirent *e;
+    bool found = false;
+    while (!found && (e = readdir(d))) {
+        if (e->d_name[0] == '.')
+            continue; /* skip dot entries */
+
+        char path[PATH_MAX];
+        int plen = snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+        if (plen < 0 || plen >= (int)sizeof(path))
+            continue; /* truncated */
+
+        struct stat st;
+        if (stat(path, &st) != 0 || !S_ISDIR(st.st_mode))
+            continue; /* not a DT node directory */
+
+        /* Try to read a 'compatible' property */
+        char compat_val[255];
+        int dt_compat_len = dt_node_read_str(path, "compatible", compat_val, sizeof(compat_val));
+        // match if compat_str is a substring of compat_val:
+        if (dt_compat_len > 0 && strncmp(compat_val, compat_str, strlen(compat_str)) == 0) {
+            strncpy(out, path, outlen - 1);
+            out[outlen - 1] = 0;
+            found = true;
+            break;
+        }
+
+        /* Recurse if not matched here */
+        if (dt_scan_dir_for_compatible(path, compat_str, out, outlen, depth + 1)) {
+            found = true;
+            break;
+        }
+    }
+
+    closedir(d);
+    return found;
+}
+
+bool dt_find_compatible_node(const char * compat_str, char *out, size_t outlen)
+{
+    return dt_scan_dir_for_compatible(DT_ROOT, compat_str, out, outlen, 0);
 }

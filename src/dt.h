@@ -48,3 +48,5 @@ int dt_node_read_str(const char *node_dir, const char *prop, char *out, size_t o
 bool same_fs_node(const char *a, const char *b);
 
 bool dt_get_chosen_bootcount_node(const char *compat_str, char* bc_node, size_t bc_node_len);
+
+bool dt_find_compatible_node(const char * compat_str, char *out, size_t outlen);
