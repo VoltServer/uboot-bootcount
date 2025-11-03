@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([uboot-bootcount],
-        [3.1.0],
+        [3.2.0],
         [thom.nichols@voltserver.com],
         [],
         [https://github.com/VoltServer/uboot-bootcount])
