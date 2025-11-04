@@ -115,6 +115,50 @@ NXP iMX93 uses the `BBNSM GPR0` register.
 Compatible platforms:
  * `fsl,imx93`
 
+### Device Tree EEPROM and RTC
+
+I2C EEPROM or RTC with nonvolatile registers can be defined as the chosen bootcount device.
+
+Example device tree:
+```dts
+  chosen {
+    // see: u-boot/drivers/bootcount/bootcount-uclass.c
+    // Choose RV3028 RTC
+    u-boot,bootcount-device = &bootcount_rv3028;
+    // Or choose I2C EEPROM:
+    // u-boot,bootcount-device = &bootcount_i2c_eeprom;
+  };
+
+  // For I2C EEPROM, specify the offset in EEPROM where the bootcount will be written
+  // ensure CONFIG_DM_BOOTCOUNT_I2C_EEPROM is enabled in u-boot config
+  bootcount_i2c_eeprom: bc_i2c_eeprom {
+    // see: u-boot/drivers/bootcount/i2c-eeprom.c
+    compatible = "u-boot,bootcount-i2c-eeprom";
+    i2c-eeprom = <&eeprom1>;
+    offset = <0x30>;
+  };
+
+
+  // Ensure the following u-boot config are enabled:
+  // - CONFIG_DM_BOOTCOUNT_RTC
+  // This example uses an RV3028 RTC. NOTE "offset" is the I2C register address, not EEPROM address.
+  bootcount_rv3028: bc_rv3028 {
+    // see: u-boot/drivers/bootcount/rtc.c
+    compatible = "u-boot,bootcount-rtc";
+    rtc = <&i2c_som_rtc>;
+    offset = <0x1F>; // registers 0x1F-0x20 are "User RAM"
+    /* these are hints to help linux userspace choose the correct nvmem device:
+       the linux rtc-rv3028 driver exposes *two* nvmem devices, one for the
+       user RAM registers and one for the EEPROM.
+       See: https://github.com/torvalds/linux/blob/v6.12/drivers/rtc/rtc-rv3028.c#L920-L927
+    */
+    linux,nvmem-type = "Battery backed";
+    linux,nvmem-offset = <0x00>;
+  };
+```
+Note if no `chosen` node is defined, the first `compatible = "u-boot,bootcount*"` definition will be used.
+
+
 ### I2C EEPROM
 
 Chipsets without a dedicated register can use I2C EEPROM.
